@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>陈兰婷的生日刮刮乐</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: white;
+            margin-bottom: 30px;
+            font-size: 32px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .scratch-card {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+            height: 300px;
+            margin: 0 auto 20px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .prize {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 20px;
+        }
+        
+        .prize-emoji {
+            font-size: 80px;
+            margin-bottom: 15px;
+            animation: bounce 0.6s ease;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+            touch-action: none;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .instruction {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 刮刮乐 🎉</h1>
+        <div class="game-container">
+            <p class="instruction">用手指或鼠标刮开涂层，看看你的奖品是什么！</p>
+            <div class="scratch-card" id="scratchCard">
+                <div class="prize" id="prize">
+                    <div class="prize-emoji" id="prizeEmoji"></div>
+                    <div id="prizeText"></div>
+                </div>
+                <canvas id="scratchCanvas"></canvas>
+            </div>
+            <button onclick="resetGame()">再来一次 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        const prizes = [
+            { emoji: '🥤', text: '一杯奶茶' },
+            { emoji: '🤡', text: '下次努力' },
+            { emoji: '💰', text: '现金红包 10元' },
+            { emoji: '🤡', text: '谢谢参与' },
+            { emoji: '🤡', text: '哈哈哈哈' },
+            { emoji: '🧧', text: '现金红包 20元' },
+            { emoji: '😘', text: '恭喜中大奖（请找人兑换）' },
+            { emoji: '🥤', text: '请我喝一杯奶茶' }
+        ];
+
+        let canvas, ctx, isDrawing = false, isRevealed = false;
+
+        function initGame() {
+            const scratchCard = document.getElementById('scratchCard');
+            canvas = document.getElementById('scratchCanvas');
+            ctx = canvas.getContext('2d');
+            
+            canvas.width = scratchCard.offsetWidth;
+            canvas.height = scratchCard.offsetHeight;
+            
+            const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
+            document.getElementById('prizeEmoji').textContent = randomPrize.emoji;
+            document.getElementById('prizeText').textContent = randomPrize.text;
+            
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#C0C0C0');
+            gradient.addColorStop(1, '#808080');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.font = 'bold 20px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText('刮开有惊喜', canvas.width / 2, canvas.height / 2);
+            
+            isRevealed = false;
+            
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+            
+            canvas.addEventListener('touchstart', handleTouchStart);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(x, y, 30, 0, Math.PI * 2);
+            ctx.fill();
+            
+            checkRevealed();
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            isDrawing = true;
+            handleTouchMove(e);
+        }
+
+        function handleTouchMove(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(x, y, 30, 0, Math.PI * 2);
+            ctx.fill();
+            
+            checkRevealed();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function checkRevealed() {
+            if (isRevealed) return;
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
+            let transparentPixels = 0;
+            
+            for (let i = 3; i < pixels.length; i += 4) {
+                if (pixels[i] < 128) {
+                    transparentPixels++;
+                }
+            }
+            
+            const totalPixels = pixels.length / 4;
+            const scratchedPercentage = (transparentPixels / totalPixels) * 100;
+            
+            if (scratchedPercentage > 50) {
+                revealPrize();
+            }
+        }
+
+        function revealPrize() {
+            isRevealed = true;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function resetGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            initGame();
+        }
+
+        window.onload = initGame;
+        window.onresize = resetGame;
+    </script>
+</body>
+</html>
